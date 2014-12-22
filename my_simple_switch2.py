@@ -1,3 +1,4 @@
+#coding=utf-8
 import json
 import logging
 
@@ -58,18 +59,25 @@ class MySimpleSwitch2(app_manager.RyuApp):
             req = parser.OFPMeterMod(datapath, ofproto.OFPMC_ADD,
                     ofproto.OFPMF_KBPS, 1, band)
             datapath.send_msg(req)'''
+        if datapath.id == 2 or datapath.id == 4:
+            self.firewall(datapath)
+            match = parser.OFPMatch()
+            actions = [parser.OFPActionOutput(ofproto.OFPP_NORMAL)]
+            self.add_flow(datapath, 0, match, actions)
 
-        # install table-miss flow entry
-        #
-        # We specify NO BUFFER to max_len of the output action due to
-        # OVS bug. At this moment, if we specify a lesser number, e.g.,
-        # 128, OVS will send Packet-In with invalid buffer_id and
-        # truncated packet data. In that case, we cannot output packets
-        # correctly.
-        match = parser.OFPMatch()
-        actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
+        else:
+            # install table-miss flow entry
+            #
+            # We specify NO BUFFER to max_len of the output action due to
+            # OVS bug. At this moment, if we specify a lesser number, e.g.,
+            # 128, OVS will send Packet-In with invalid buffer_id and
+            # truncated packet data. In that case, we cannot output packets
+            # correctly.
+            match = parser.OFPMatch()
+            actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
                                           ofproto.OFPCML_NO_BUFFER)]
-        self.add_flow(datapath, 0, match, actions)
+            self.add_flow(datapath, 0, match, actions)
+
 
     def add_flow(self, datapath, priority, match, actions,
                  hard_timeout=0, flags=0, command=0):
@@ -84,6 +92,42 @@ class MySimpleSwitch2(app_manager.RyuApp):
                                 hard_timeout=hard_timeout, flags=flags,
                                 command=command)
         datapath.send_msg(mod)
+
+    def firewall(self, datapath):
+        ofproto = datapath.ofproto
+        parser = datapath.ofproto_parser
+        actions = []
+
+        match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, tcp_dst=80)
+        self.add_flow(datapath, 2, match, actions)
+
+        match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, tcp_dst=21)
+        self.add_flow(datapath, 3, match, actions)
+
+        match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, tcp_dst=22)
+        self.add_flow(datapath, 4, match, actions)
+
+        match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, tcp_dst=23)
+        self.add_flow(datapath, 5, match, actions)
+
+        match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, tcp_dst=24)
+        self.add_flow(datapath, 6, match, actions)
+
+        match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, tcp_dst=25)
+        self.add_flow(datapath, 7, match, actions)
+
+        match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, tcp_dst=26)
+        self.add_flow(datapath, 8, match, actions)
+
+        match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, tcp_dst=27)
+        self.add_flow(datapath, 9, match, actions)
+
+        match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, tcp_dst=28)
+        self.add_flow(datapath, 10, match, actions)
+
+        match = parser.OFPMatch(eth_type=0x0800,
+                ipv4_src=("10.0.1.0","255.255.255.0"))
+        self.add_flow(datapath, 11, match, actions)
 
     @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
     def _packet_in_handler(self, ev):
@@ -169,8 +213,11 @@ class MySimpleSwitch2(app_manager.RyuApp):
 
     #每10秒換一次rule
     def _modify_rule(self):
+        #hub.sleep(5)
+        start = raw_input()
         while True:
-            hub.sleep(10)
+            hub.sleep(5)
+            self.logger.info('change rule')
             datapath = self.switches[1]
             ofproto = datapath.ofproto
             parser = datapath.ofproto_parser
